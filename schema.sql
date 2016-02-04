@@ -185,6 +185,14 @@ ALTER TABLE ONLY feeds_private
 
 
 --
+-- Name: feeds_private_uniq_entry_id; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY feeds_private
+    ADD CONSTRAINT feeds_private_uniq_entry_id UNIQUE (entry_id);
+
+
+--
 -- Name: github_users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -193,18 +201,19 @@ ALTER TABLE ONLY github_users
 
 
 --
+-- Name: github_users_uniq_username; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY github_users
+    ADD CONSTRAINT github_users_uniq_username UNIQUE (username);
+
+
+--
 -- Name: users_atom_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY users_atom_tokens
     ADD CONSTRAINT users_atom_tokens_pkey PRIMARY KEY (id);
-
-
---
--- Name: idx_fp_entry_id; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_fp_entry_id ON feeds_private USING btree (entry_id);
 
 
 --

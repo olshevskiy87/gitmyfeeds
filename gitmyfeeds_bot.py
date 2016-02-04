@@ -57,16 +57,10 @@ for entry in soup.find_all('entry'):
     if quote is not None:
         entry_text = quote.get_text().strip()
 
-    cur.execute("select id from feeds_private where entry_id = %s", (entry_id,))
-    if cur.rowcount != 0:
-        # print 'there is already an entry with id [%s]'% entry_id
-        continue
-
-    """ there is not such entry, lets add """
-    # print 'add entry with id [%s]'% entry_id
     cur.execute("insert into feeds_private("\
                 "user_id, event, entry_id, published, title, author, content"\
-                ") values(%s, %s, %s, %s, %s, %s, %s)",\
+                ") values(%s, %s, %s, %s, %s, %s, %s) "
+                "on conflict (entry_id) do nothing",\
                 (1, event, entry_id, published, title, author, entry_text))
     conn.commit()
 

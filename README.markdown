@@ -5,12 +5,12 @@ gitmyfeeds telegram bot
 
 python 2.7+
 
-Python modules:
+#### Python modules:
 
 - BeautifulSoup
 - telegram
 - psycopg2
 
-DB (to store the feeds):
+#### DB (to store the feeds):
 
-- PostgreSQL
+- PostgreSQL 9.5 (first version with ON CONFLICT ... DO ...)
