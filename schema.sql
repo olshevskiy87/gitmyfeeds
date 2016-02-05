@@ -34,6 +34,41 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
+-- Name: chats_to_send; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE chats_to_send (
+    id integer NOT NULL,
+    chat_id bigint NOT NULL,
+    description text,
+    active boolean DEFAULT false
+);
+
+
+ALTER TABLE chats_to_send OWNER TO postgres;
+
+--
+-- Name: chats_to_send_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE chats_to_send_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE chats_to_send_id_seq OWNER TO postgres;
+
+--
+-- Name: chats_to_send_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE chats_to_send_id_seq OWNED BY chats_to_send.id;
+
+
+--
 -- Name: feeds_private; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -46,7 +81,8 @@ CREATE TABLE feeds_private (
     title text,
     author text,
     content text,
-    creadt timestamp with time zone DEFAULT now()
+    creadt timestamp with time zone DEFAULT now(),
+    link text
 );
 
 
@@ -126,8 +162,7 @@ ALTER TABLE github_users OWNER TO postgres;
 --
 
 CREATE TABLE users_atom_tokens (
-    id bigint NOT NULL,
-    user_id integer,
+    user_id integer NOT NULL,
     token text
 );
 
@@ -135,24 +170,10 @@ CREATE TABLE users_atom_tokens (
 ALTER TABLE users_atom_tokens OWNER TO postgres;
 
 --
--- Name: users_atom_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
-CREATE SEQUENCE users_atom_tokens_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE users_atom_tokens_id_seq OWNER TO postgres;
-
---
--- Name: users_atom_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE users_atom_tokens_id_seq OWNED BY users_atom_tokens.id;
+ALTER TABLE ONLY chats_to_send ALTER COLUMN id SET DEFAULT nextval('chats_to_send_id_seq'::regclass);
 
 
 --
@@ -170,10 +191,19 @@ ALTER TABLE ONLY feeds_sent ALTER COLUMN id SET DEFAULT nextval('feeds_sent_id_s
 
 
 --
--- Name: id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: chats_to_send_chat_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY users_atom_tokens ALTER COLUMN id SET DEFAULT nextval('users_atom_tokens_id_seq'::regclass);
+ALTER TABLE ONLY chats_to_send
+    ADD CONSTRAINT chats_to_send_chat_id_key UNIQUE (chat_id);
+
+
+--
+-- Name: chats_to_send_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY chats_to_send
+    ADD CONSTRAINT chats_to_send_pkey PRIMARY KEY (id);
 
 
 --
@@ -213,7 +243,7 @@ ALTER TABLE ONLY github_users
 --
 
 ALTER TABLE ONLY users_atom_tokens
-    ADD CONSTRAINT users_atom_tokens_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT users_atom_tokens_pkey PRIMARY KEY (user_id);
 
 
 --

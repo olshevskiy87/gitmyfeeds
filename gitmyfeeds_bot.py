@@ -7,20 +7,32 @@ from bs4 import BeautifulSoup
 import telegram
 import re
 import psycopg2
+import psycopg2.extras
 
-TELEGRAM_TOKEN = ""
-GH_TOKEN = ""
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+pg = config['db']['pg_conn']
+tg_bot = config['telegram_bot']
 
 """ connect to postgres """
-conn = psycopg2.connect("host=127.0.0.1"\
-        " port=5432"\
-        " dbname=gitmyfeeds"\
-        " user=postgres"\
-        " password=")
+conn = psycopg2.connect("host=%s port=%s dbname=%s user=%s password=%s"\
+        % (pg['host'], pg['port'], pg['dbname'], pg['user'], pg['pass'])\
+        , cursor_factory=psycopg2.extras.DictCursor)
+
+cur = conn.cursor()
+""" now use test user only """
+USER_ID = 1 # TODO: implement multi-user delivering
+cur.execute((
+    "select uat.token, gu.username "
+    "from users_atom_tokens uat "
+    "    join github_users gu on gu.user_id = uat.user_id "
+    "where uat.user_id = %s")% USER_ID)
+atom = cur.fetchone()
 
 """ get feeds for one test user """
 c = httplib.HTTPSConnection('github.com')
-c.request('GET', '/olshevskiy87.private.atom?token' + GH_TOKEN)
+c.request('GET', '/%s.private.atom?token=%s'% (atom['username'], atom['token']))
 response = c.getresponse()
 data = response.read()
 soup = BeautifulSoup(data, 'html.parser')
@@ -29,11 +41,11 @@ soup = BeautifulSoup(data, 'html.parser')
 entry_id_pat = re.compile(r".*:(\w+)/(\d+)$")
 
 """ parse entries data and save it in the db """
-cur = conn.cursor()
 for entry in soup.find_all('entry'):
     published = entry.published.get_text()
     entry_title = entry.title.get_text()
     published = entry.published.get_text()
+    link = entry.link['href']
     title = entry.title.get_text()
 
     author_raw = entry.author
@@ -58,36 +70,51 @@ for entry in soup.find_all('entry'):
         entry_text = quote.get_text().strip()
 
     cur.execute("insert into feeds_private("\
-                "user_id, event, entry_id, published, title, author, content"\
-                ") values(%s, %s, %s, %s, %s, %s, %s) "
+                "user_id, event, entry_id, published, title, author, content, link"\
+                ") values(%s, %s, %s, %s, %s, %s, %s, %s) "
                 "on conflict (entry_id) do nothing",\
-                (1, event, entry_id, published, title, author, entry_text))
+                (USER_ID, event, entry_id, published, title, author, entry_text, link))
     conn.commit()
 
+""" prepare telegram bot """
+bot = telegram.Bot(token = tg_bot['token'])
+
+""" for all active chats send new feeds """
+cur_feeds = conn.cursor()
+cur_feeds.execute((
+    "select fp.id, fp.title, fp.link, fp.content "
+    "    , to_char(fp.published, 'dd.mm.yy hh24:mi') dt "
+    "from feeds_private fp "
+    "    left join feeds_sent fs "
+    "        on fp.id = fs.feed_private_id and fs.user_id = %s "
+    "where fs.id is null "
+    "order by fp.published asc "
+    "limit %s ") % (USER_ID, tg_bot['send_feeds_limit'])
+    )
+
+cur_upd = conn.cursor()
+cur.execute("select chat_id from chats_to_send where active = true")
+for chat in cur:
+    for feed in cur_feeds:
+        """ prepare message to send """
+        msg = "*%s* [%s](%s)"% (feed['dt'], feed['title'], feed['link'])
+        if not feed['content'] is None:
+            msg += "\n_%s_"% feed['content']
+
+        """ send it """
+        bot.sendMessage(chat_id = chat['chat_id']\
+                , text = msg\
+                , parse_mode = 'Markdown'\
+                , disable_web_page_preview = True)
+
+        """ mark as read to skip it next time """
+        cur_upd.execute((
+            "insert into feeds_sent(feed_private_id, user_id) "
+            "values(%s, %s)")% (feed['id'], USER_ID))
+        conn.commit()
+
+cur_feeds.close()
+cur_upd.close()
 cur.close()
 
-try:
-    f = open('chats_to_send.json', 'r')
-except:
-    sys.exit('error: could not open json file. exit.\n')
-
-json_file_data = None
-try:
-    json_file_data = f.read()
-except:
-    sys.exit('error: could not read from json file. exit.\n')
-
-f.close()
-
-json_p = json.loads(json_file_data)
-if not isinstance(json_p, list):
-    sys.exit('error: json must be a list of objects. exit.\n')
-
-""" for all connected chats send new feeds """
-for chat_item in json_p:
-    print 'chat_id [', chat_item['chat_id'], ']'
-    bot = telegram.Bot(token = TELEGRAM_TOKEN)
-    bot.sendMessage(chat_id = chat_item['chat_id'], text = "Hi")
-
 conn.close()
-
