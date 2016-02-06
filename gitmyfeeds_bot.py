@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys
+import time
 import json
 import httplib
 from bs4 import BeautifulSoup
@@ -14,6 +14,8 @@ with open('config.json', 'r') as f:
 
 pg = config['db']['pg_conn']
 tg_bot = config['telegram_bot']
+
+print '[%s] start...'% time.strftime('%d.%m.%Y %H:%M:%S')
 
 """ connect to postgres """
 conn = psycopg2.connect("host=%s port=%s dbname=%s user=%s password=%s"\
@@ -96,6 +98,7 @@ cur_upd = conn.cursor()
 cur.execute("select chat_id from chats_to_send where active = true")
 for chat in cur:
     for feed in cur_feeds:
+        print 'send feed item [%s] to chat [%s]'% (feed['id'], chat['chat_id'])
         """ prepare message to send """
         msg = "*%s* [%s](%s)"% (feed['dt'], feed['title'], feed['link'])
         if not feed['content'] is None:
@@ -118,3 +121,5 @@ cur_upd.close()
 cur.close()
 
 conn.close()
+
+print '[%s] finish.'% time.strftime('%d.%m.%Y %H:%M:%S')
