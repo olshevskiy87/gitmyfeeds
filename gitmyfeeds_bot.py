@@ -1,4 +1,5 @@
 #!/usr/bin/python
+"""telegram bot to send github user rss-feeds"""
 
 import time
 import json
@@ -17,32 +18,33 @@ tg_bot = config['telegram_bot']
 
 print '[%s] start...'% time.strftime('%d.%m.%Y %H:%M:%S')
 
-""" connect to postgres """
-conn = psycopg2.connect("host=%s port=%s dbname=%s user=%s password=%s"\
-        % (pg['host'], pg['port'], pg['dbname'], pg['user'], pg['pass'])\
-        , cursor_factory=psycopg2.extras.DictCursor)
+# connect to postgres
+conn = psycopg2.connect(
+    "host=%s port=%s dbname=%s user=%s password=%s"
+    % (pg['host'], pg['port'], pg['dbname'], pg['user'], pg['pass'])
+    , cursor_factory=psycopg2.extras.DictCursor)
 
 cur = conn.cursor()
-""" now use test user only """
-USER_ID = 1 # TODO: implement multi-user delivering
-cur.execute((
+# now use test user only
+user_id = 1
+cur.execute(
     "select uat.token, gu.username "
     "from users_atom_tokens uat "
     "    join github_users gu on gu.user_id = uat.user_id "
-    "where uat.user_id = %s")% USER_ID)
+    "where uat.user_id = %s"% user_id)
 atom = cur.fetchone()
 
-""" get feeds for one test user """
+# get feeds for one test user
 c = httplib.HTTPSConnection('github.com')
 c.request('GET', '/%s.private.atom?token=%s'% (atom['username'], atom['token']))
 response = c.getresponse()
 data = response.read()
 soup = BeautifulSoup(data, 'html.parser')
 
-""" prepare regexp to get event and entry id from xml """
+# prepare regexp to get event and entry id from xml
 entry_id_pat = re.compile(r".*:(\w+)/(\d+)$")
 
-""" parse entries data and save it in the db """
+# parse entries data and save it in the db
 for entry in soup.find_all('entry'):
     published = entry.published.get_text()
     entry_title = entry.title.get_text()
@@ -71,19 +73,20 @@ for entry in soup.find_all('entry'):
     if quote is not None:
         entry_text = quote.get_text().strip()
 
-    cur.execute("insert into feeds_private("\
-                "user_id, event, entry_id, published, title, author, content, link"\
-                ") values(%s, %s, %s, %s, %s, %s, %s, %s) "
-                "on conflict (entry_id) do nothing",\
-                (USER_ID, event, entry_id, published, title, author, entry_text, link))
+    cur.execute(
+        "insert into feeds_private("
+        "user_id, event, entry_id, published, title, author, content, link"
+        ") values (%s, %s, %s, %s, %s, %s, %s, %s) "
+        "on conflict (entry_id) do nothing",
+        (user_id, event, entry_id, published, title, author, entry_text, link))
     conn.commit()
 
-""" prepare telegram bot """
-bot = telegram.Bot(token = tg_bot['token'])
+# prepare telegram bot
+bot = telegram.Bot(token=tg_bot['token'])
 
-""" for all active chats send new feeds """
+# for all active chats send new feeds
 cur_feeds = conn.cursor()
-cur_feeds.execute((
+cur_feeds.execute(
     "select fp.id, fp.title, fp.link, fp.content "
     "    , to_char(fp.published, 'dd.mm.yy hh24:mi') dt "
     "from feeds_private fp "
@@ -91,29 +94,31 @@ cur_feeds.execute((
     "        on fp.id = fs.feed_private_id and fs.user_id = %s "
     "where fs.id is null "
     "order by fp.published asc "
-    "limit %s ") % (USER_ID, tg_bot['send_feeds_limit'])
-    )
+    "limit %s "
+    % (user_id, tg_bot['send_feeds_limit']))
 
 cur_upd = conn.cursor()
 cur.execute("select chat_id from chats_to_send where active = true")
 for chat in cur:
     for feed in cur_feeds:
         print 'send feed item [%s] to chat [%s]'% (feed['id'], chat['chat_id'])
-        """ prepare message to send """
+        # prepare message to send
         msg = "*%s* [%s](%s)"% (feed['dt'], feed['title'], feed['link'])
         if not feed['content'] is None:
             msg += "\n_%s_"% feed['content']
 
-        """ send it """
-        bot.sendMessage(chat_id = chat['chat_id']\
-                , text = msg\
-                , parse_mode = 'Markdown'\
-                , disable_web_page_preview = True)
+        # send it
+        bot.sendMessage(
+            chat_id=chat['chat_id'],
+            text=msg,
+            parse_mode='Markdown',
+            disable_web_page_preview=True)
 
-        """ mark as read to skip it next time """
-        cur_upd.execute((
+        # mark as read to skip it next time
+        cur_upd.execute(
             "insert into feeds_sent(feed_private_id, user_id) "
-            "values(%s, %s)")% (feed['id'], USER_ID))
+            "values (%s, %s)"
+            % (feed['id'], user_id))
         conn.commit()
 
 cur_feeds.close()
