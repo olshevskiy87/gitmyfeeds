@@ -3,17 +3,31 @@ gitmyfeeds telegram bot
 
 ### Dependencies
 
-python 2.7+
+#### Python
 
-#### Python modules:
+* Interpreter `python` 2.7+
 
-- BeautifulSoup
-- telegram
-- psycopg2 2.5+
+* Packages
 
-#### DB (to store the feeds):
+    - `BeautifulSoup` 3.2.1
+    - `python-telegram-bot` 3.2.0
+    - `psycopg2` 2.6.1
 
-- PostgreSQL 9.5 (first version with ON CONFLICT ... DO ...)
+To install all packages at once run
+
+```sh
+$ pip install --user -r requirements.txt
+```
+
+#### DBMS
+
+* `PostgreSQL` 9.5 (first version with `ON CONFLICT ... DO ...`)
+
+To install database schema run
+
+```sh
+$ psql -h localhost -d gitmyfeeds -f schema.sql
+```
 
 ### LICENSE
 Copyright (c) 2016 Dmitriy Olshevskiy. MIT LICENSE.
