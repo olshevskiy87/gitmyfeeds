@@ -120,7 +120,7 @@ for chat in cur:
         bot.sendMessage(
             chat_id=chat['chat_id'],
             text=msg,
-            parse_mode='Markdown',
+            parse_mode=telegram.ParseMode.MARKDOWN,
             disable_web_page_preview=True)
 
         # mark as read to skip it next time
