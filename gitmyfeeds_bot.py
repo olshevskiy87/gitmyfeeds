@@ -16,13 +16,13 @@ with open('config.json', 'r') as f:
 pg = config['db']['pg_conn']
 tg_bot = config['telegram_bot']
 
-print '[%s] start...'% time.strftime('%d.%m.%Y %H:%M:%S')
+print '[%s] start...' % time.strftime('%d.%m.%Y %H:%M:%S')
 
 # connect to postgres
 conn = psycopg2.connect(
     "host=%s port=%s dbname=%s user=%s password=%s"
-    % (pg['host'], pg['port'], pg['dbname'], pg['user'], pg['pass'])
-    , cursor_factory=psycopg2.extras.DictCursor)
+    % (pg['host'], pg['port'], pg['dbname'], pg['user'], pg['pass']),
+    cursor_factory=psycopg2.extras.DictCursor)
 
 cur = conn.cursor()
 # now use test user only
@@ -31,12 +31,13 @@ cur.execute(
     "select uat.token, gu.username "
     "from users_atom_tokens uat "
     "    join github_users gu on gu.user_id = uat.user_id "
-    "where uat.user_id = %s"% user_id)
+    "where uat.user_id = %s" % user_id)
 atom = cur.fetchone()
 
 # get feeds for one test user
 c = httplib.HTTPSConnection('github.com')
-c.request('GET', '/%s.private.atom?token=%s'% (atom['username'], atom['token']))
+c.request('GET', '/%s.private.atom?token=%s'
+          % (atom['username'], atom['token']))
 response = c.getresponse()
 data = response.read()
 soup = BeautifulSoup(data, 'html.parser')
@@ -101,11 +102,12 @@ cur_upd = conn.cursor()
 cur.execute("select chat_id from chats_to_send where active = true")
 for chat in cur:
     for feed in cur_feeds:
-        print 'send feed item [%s] to chat [%s]'% (feed['id'], chat['chat_id'])
+        print 'send feed item [%s] to chat [%s]' \
+            % (feed['id'], chat['chat_id'])
         # prepare message to send
-        msg = "*%s* [%s](%s)"% (feed['dt'], feed['title'], feed['link'])
+        msg = "*%s* [%s](%s)" % (feed['dt'], feed['title'], feed['link'])
         if not feed['content'] is None:
-            msg += "\n_%s_"% feed['content']
+            msg += "\n_%s_" % feed['content']
 
         # send it
         bot.sendMessage(
@@ -127,4 +129,4 @@ cur.close()
 
 conn.close()
 
-print '[%s] finish.'% time.strftime('%d.%m.%Y %H:%M:%S')
+print '[%s] finish.' % time.strftime('%d.%m.%Y %H:%M:%S')
