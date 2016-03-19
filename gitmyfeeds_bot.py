@@ -50,7 +50,6 @@ entry_id_pat = re.compile(r".*:(\w+)/(\d+)$")
 for entry in soup.find_all('entry'):
     published = entry.published.get_text()
     entry_title = entry.title.get_text()
-    published = entry.published.get_text()
     link = entry.link['href']
     title = entry.title.get_text()
 
