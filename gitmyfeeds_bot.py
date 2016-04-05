@@ -113,7 +113,7 @@ for chat in cur:
         # prepare message to send
         msg = "*%s* [%s](%s)" % (feed['dt'], feed['title'], feed['link'])
         if not feed['content'] is None:
-            msg += "\n_%s_" % feed['content']
+            msg += "\n`%s`" % feed['content']
 
         # send it
         bot.sendMessage(
